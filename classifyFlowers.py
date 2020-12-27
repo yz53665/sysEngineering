@@ -185,8 +185,7 @@ def GetRange(data):
     return ranges 
 
 '''
-根据GetRange提供的数据范围生成categories * dataNum个随机数字以及
-categories个labels
+根据GetRange提供的数据范围生成categories * dataNum个随机数字
 param:
     ranges:
     categories:
@@ -199,19 +198,45 @@ def CreateRandomData(ranges, categories, dataNum):
     for minumum, maximum in ranges:
         data = np.random.uniform(minumum, maximum, dataNum)
         datas.append(data)
-    labels = np.random.randint(0, categories, dataNum)
-    datas.append(labels)
     datas = np.asarray(datas)
     datas = datas.transpose()
     return datas
 
-def RunDCTree(model, xTrain, xTest, yTrain, yTest):
+if __name__ == '__main__':
+    path = 'iris.data'
+    randpath = 'randData.csv'
+    ftrsName = ['sepal length', 'sepal width', 'petal length', 'petal width']
+    labels = ['Iris-setosa', 'Iris-versicolor', 'Iris-virginica']
+    
+    # iris数据集
+    xTrain, xTest, yTrain, yTest = PrepareData(path, [0, 1, 2, 3])
+    model = PrepareDcTreeModule(xTrain, yTrain)
     accTrain = RunModel(model, xTrain, yTrain)
     accTest = RunModel(model, xTest, yTest)
     PrintResult(accTrain, 'Train')
     PrintResult(accTest, 'Test')
 
-def PlotDCTree(model, x, y, labels, ftrsName): 
+    x = np.vstack((xTrain, xTest))
+    y = np.hstack((yTrain, yTest))
+
+    # 随机生成100个数据
+    length = 100
+    ranges = GetRange(x)
+    randData= CreateRandomData(ranges, 4, length)
+
+    yPreRandInt = model.predict(randData)
+    yPreRandStrs = []
+    for index in range(length):
+        yPreRandStr = labels[yPreRandInt[index]]
+        yPreRandStrs.append(yPreRandStr)
+    yPreRandStrs = np.asarray(yPreRandStrs)
+    yPreRandStrs = yPreRandStrs.reshape((-1,1))
+    output = np.hstack((randData, yPreRandStrs))
+    # 预测结果存入randPath中
+    df = pd.DataFrame(output, columns=ftrsName+['predict'])
+    df.to_csv(randpath, header=0)
+
+    # 下面开始绘制决策平面
     # 初始化类
     painter = DcisionSurface(model, labels)
     painter.AddFeaturesGroup(list(range(4)), ftrsName)
@@ -225,37 +250,8 @@ def PlotDCTree(model, x, y, labels, ftrsName):
     painter.DrawDCTree()
     plt.show()
 
-if __name__ == '__main__':
-    path = 'iris.data'
-    randpath = 'randData.csv'
-    ftrsName = ['sepal length', 'sepal width', 'petal length', 'petal width']
-    labels = ['Iris-setosa', 'Iris-versicolor', 'Iris-virginica']
-    
-    # iris数据集
-    xTrain, xTest, yTrain, yTest = PrepareData(path, [0, 1, 2, 3])
-    model = PrepareDcTreeModule(xTrain, yTrain)
-
-    RunDCTree(model, xTrain, xTest, yTrain, yTest)
-
-    x = np.vstack((xTrain, xTest))
-    y = np.hstack((yTrain, yTest))
-    
-    PlotDCTree(model, x, y, labels, ftrsName)
-
-    # 随机生成100个点
-    ranges = GetRange(x)
-    print(ranges)
-    randResult = CreateRandomData(ranges, 4, 100)
-    df = pd.DataFrame(randResult, columns=ftrsName+['label'])
-    df.to_csv(randpath, header=0)
-
-    # 随机生成的数据集
-    xTrain, xTest, yTrain, yTest = PrepareData(randpath, [0, 1, 2, 3])
-    model = PrepareDcTreeModule(xTrain, yTrain)
-
-    RunDCTree(model, xTrain, xTest, yTrain, yTest)
-
-    x = np.vstack((xTrain, xTest))
-    y = np.hstack((yTrain, yTest))
-    
-    PlotDCTree(model, x, y, labels, ftrsName)
+    # 绘制随机生成的100个数据在决策平面上的散点图
+    plt.figure()
+    painter.DrawSurface()
+    painter.DrawScatter(randData, yPreRandInt, 'ryb')
+    plt.show()
